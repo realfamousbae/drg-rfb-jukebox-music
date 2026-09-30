@@ -7,7 +7,7 @@ Runs inside Unreal Editor 4.27 (embedded Python 3.7) with the "Python Editor Scr
       UE4Editor-Cmd.exe <path>/FSD.uproject -run=pythonscript -script=<repo>/tools/ue_import.py
 
 Every WAV is imported under its exact vanilla path and name, then the SoundWave gets the vanilla
-properties recorded by scan_slots.py (SoundClass, attenuation, volume, looping, streaming).
+properties recorded by scan_slots.py (SoundClass, attenuation, looping, streaming; not volume).
 SoundClass/attenuation assets are resolved from the template's dummy Audio/SoundControl folder,
 which must be listed in "Directories to never cook" so the cooked waves point at the game's assets.
 """
@@ -62,8 +62,8 @@ def apply_vanilla_props(wave, row):
                            "the music will not fade with distance from the jukebox")
     if attenuation:
         set_prop(wave, "attenuation_settings", attenuation)
-    if row.get("volume"):
-        set_prop(wave, "volume", float(row["volume"]))
+    # Vanilla "volume" is deliberately not copied: it compensated for quiet vanilla tracks (e.g. 1.7 on
+    # Jukebox_Greek_*), while ours are already loudness-normalized by prepare_tracks.py.
     set_prop(wave, "compression_quality", int(row.get("compression_quality") or DEFAULT_COMPRESSION_QUALITY))
     set_prop(wave, "looping", as_bool(row.get("looping")))
     if row.get("streaming"):

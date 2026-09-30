@@ -14,7 +14,7 @@ param(
     [string]$ModName = "RFB_Jukebox",
     [string]$Repak = "repak",
     [string]$Python = "python",
-    [double]$TargetLufs = -16,
+    [double]$TargetLufs = -11,
     [switch]$TrimSilence,
     [switch]$SkipPrepare,
     [switch]$SkipImport,

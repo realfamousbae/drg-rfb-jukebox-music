@@ -33,6 +33,14 @@ modio/                  черновик страницы мода и лого
 
 ## 1. Какие слоты есть в игре (FModel, ПК)
 
+**Быстрый путь без FModel** (repak):
+```
+repak unpack -i FSD/Content/Audio/Music/JukeBox -o X:\DRGModding\vanilla "<DRG>\FSD\Content\Paks\FSD-WindowsNoEditor.pak"
+python tools/scan_slots.py X:\DRGModding\vanilla\FSD\Content\Audio\Music\JukeBox
+```
+Скрипт сам читает из ассетов `Duration`, `Volume`, `bLooping` и `bStreaming`. На билде 25433570 получилось 39 обычных слотов и 8 стримерских. SoundClass и Attenuation у ванильных песен не заданы. FModel по-прежнему нужен для п. 4–5.
+
+Через FModel:
 1. FModel → Directory → Selector → папка DRG → загрузить `FSD-WindowsNoEditor.pak`.
 2. Правый клик по `FSD/Content/Audio/Music/JukeBox` → **Save Folder's Packages Properties (.json)**.
 3. Собрать список слотов:
@@ -44,7 +52,7 @@ modio/                  черновик страницы мода и лого
    ```
    python tools/prepare_tracks.py measure path\to\vanilla.ogg
    ```
-   Полученное значение LUFS подставь в `--target-lufs` на следующем шаге, чтобы твои треки звучали так же громко, как ванильные.
+   Полученное значение LUFS подставь в `--target-lufs` на следующем шаге, чтобы твои треки звучали так же громко, как ванильные. На билде 25433570 ванильные песни звучат примерно на −12…−9 LUFS, отсюда значение по умолчанию −11.
 5. Заодно посмотри блюпринт джукбокса: не выводит ли он названия песен и не зашиты ли где-то длительности. Названия и жанры в UI останутся ванильными: их правка — уже не аудио, и авто-верификация слетит.
 
 ## 2. Подготовка треков (Mac или ПК)
@@ -60,7 +68,7 @@ python tools/fetch_tracks.py
 Можно и просто положить свои треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
 
 ```
-python tools/prepare_tracks.py build --target-lufs -16 --trim-silence
+python tools/prepare_tracks.py build --target-lufs -11 --trim-silence
 ```
 - Каждый трек один раз конвертируется в WAV 48 кГц / 16 бит / стерео. Громкость выравнивается двухпроходным `loudnorm` до цели с потолком true peak −1 dBTP. Результат кэшируется в `build/normalized/`.
 - Обычный и стримерский наборы **независимо** проходят по всем трекам по кругу. Если треков меньше, чем слотов, они повторяются. Если больше, лишние не попадут в набор, и скрипт об этом предупредит.
@@ -85,7 +93,7 @@ python tools/prepare_tracks.py build --target-lufs -16 --trim-silence
 
 **Одной командой** (редактор UE закрыт):
 ```
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project C:\Mods\Audio-Modding-Template\FSD.uproject -TargetLufs -16 -TrimSilence
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project C:\Mods\Audio-Modding-Template\FSD.uproject -TargetLufs -11 -TrimSilence
 ```
 Скрипт по очереди делает `prepare_tracks` → `ue_import.py` (headless) → `RunUAT BuildCookRun` → `collect_cooked` → `repak pack --version V11` → zip. На выходе `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Флаги `-SkipPrepare`, `-SkipImport`, `-SkipCook` позволяют продолжить с нужного шага.
 

@@ -6,11 +6,18 @@ Then point this script at FModel's Output/Exports directory (or any folder insid
 
     python tools/scan_slots.py "C:/FModel/Output/Exports/FSD/Content/Audio/Music/JukeBox"
 
-Raw .uasset exports also work, but then only names are known (no duration or SoundClass).
+Raw cooked .uasset/.uexp files also work, e.g. unpacked straight from the game pak with repak:
+
+    repak unpack -i FSD/Content/Audio/Music/JukeBox -o <dir> FSD-WindowsNoEditor.pak
+    python tools/scan_slots.py <dir>/FSD/Content/Audio/Music/JukeBox
+
+That reads Duration, Volume, bLooping and bStreaming, but cannot resolve SoundClass/Attenuation
+references (vanilla jukebox waves have none as of build 25433570).
 """
 import argparse
 import json
 import re
+import struct
 from pathlib import Path
 
 from common import REPO, SLOTS_CSV, SLOT_FIELDS, die, slot_set, write_csv
@@ -69,6 +76,74 @@ def slot_from_json(file):
     }
 
 
+def uasset_names(data):
+    """Name map of a cooked UE4 (4.27, unversioned custom versions) package summary."""
+    o = 4
+    legacy = struct.unpack_from("<i", data, o)[0]
+    o += 4 if legacy == -4 else 8
+    o += 8  # FileVersionUE4, FileVersionLicenseeUE4
+    o += 4 + struct.unpack_from("<i", data, o)[0] * 20  # custom versions
+    o += 4  # TotalHeaderSize
+    n = struct.unpack_from("<i", data, o)[0]
+    o += 4 + (n if n >= 0 else -2 * n)  # FolderName
+    o += 4  # PackageFlags
+    count, offset = struct.unpack_from("<ii", data, o)
+    names, o = [], offset
+    for _ in range(count):
+        n = struct.unpack_from("<i", data, o)[0]
+        o += 4
+        if n < 0:
+            names.append(data[o:o - 2 * n - 2].decode("utf-16-le"))
+            o += -2 * n
+        else:
+            names.append(data[o:o + n - 1].decode("latin-1"))
+            o += n
+        o += 4  # hash
+    return names
+
+
+def slot_from_uasset(file):
+    """Read the few tagged SoundWave properties straight from a raw .uasset/.uexp pair (e.g. a repak unpack).
+
+    Tagged properties that equal the class default are not serialized, so a missing bool means false."""
+    try:
+        names = uasset_names(file.read_bytes())
+        uexp = file.with_suffix(".uexp").read_bytes()
+    except (OSError, struct.error, UnicodeDecodeError) as e:
+        print(f"  skip {file.name}: {e}")
+        return None
+    if "SoundWave" not in names:
+        return None
+
+    def tag(prop, typ, size):
+        if prop not in names or typ not in names:
+            return -1, b""
+        pat = struct.pack("<iiiiii", names.index(prop), 0, names.index(typ), 0, size, 0)
+        return uexp.find(pat), pat
+
+    def float_prop(prop):
+        i, pat = tag(prop, "FloatProperty", 4)
+        return struct.unpack_from("<f", uexp, i + len(pat) + 1)[0] if i >= 0 else None  # +1: HasPropertyGuid
+
+    def bool_prop(prop):
+        i, pat = tag(prop, "BoolProperty", 0)
+        return "true" if i >= 0 and uexp[i + len(pat)] else "false"
+
+    duration, volume = float_prop("Duration"), float_prop("Volume")
+    if "SoundClassObject" in names or "AttenuationSettings" in names:
+        print(f"  note {file.name}: has SoundClass/Attenuation - raw scan can't resolve them, use an FModel .json export")
+    return {
+        "name": file.stem,
+        "duration_sec": f"{duration:.2f}" if duration is not None else "",
+        "sound_class": "",
+        "attenuation": "",
+        "volume": f"{volume:g}" if volume is not None else "",
+        "compression_quality": "",
+        "looping": bool_prop("bLooping"),
+        "streaming": bool_prop("bStreaming"),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("export", type=Path, help="FModel export folder (.json or .uasset files)")
@@ -94,7 +169,9 @@ def main():
         elif path in slots:  # the .json for this asset already gave us more detail
             continue
         else:
-            info = {"name": file.stem}
+            info = slot_from_uasset(file)
+            if info is None:
+                continue
         dur = info.get("duration_sec")
         if dur and float(dur) < args.min_duration:
             skipped.append(f"{path} ({dur}s)")

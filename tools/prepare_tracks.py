@@ -2,7 +2,7 @@
 """Convert your tracks to WAV, level their loudness and lay them out under the jukebox slot names.
 
     python tools/prepare_tracks.py measure path/to/vanilla_export.ogg ...   # LUFS / true peak of any files
-    python tools/prepare_tracks.py build [--target-lufs -16] [--trim-silence] [--order shuffle]
+    python tools/prepare_tracks.py build [--target-lufs -11] [--trim-silence] [--order shuffle]
 
 build reads tracks/ and data/jukebox_slots.csv (+ optional data/mapping.csv) and writes
 build/import/<Audio/Music/JukeBox/...>/<SlotName>.wav plus build/import/manifest.csv for ue_import.py.
@@ -192,8 +192,8 @@ def main():
     m = sub.add_parser("measure", help="print loudness of audio files (e.g. vanilla jukebox exports)")
     m.add_argument("files", nargs="+", type=Path)
     b = sub.add_parser("build", help="normalise tracks and lay them out per jukebox slot")
-    b.add_argument("--target-lufs", type=float, default=-16.0,
-                   help="integrated loudness target; match the vanilla tracks (default -16)")
+    b.add_argument("--target-lufs", type=float, default=-11.0,
+                   help="integrated loudness target; match the vanilla tracks (default -11: vanilla jukebox is about -12..-9)")
     b.add_argument("--true-peak", type=float, default=-1.0, help="true-peak ceiling in dBTP (default -1)")
     b.add_argument("--sample-rate", type=int, default=48000)
     b.add_argument("--trim-silence", action="store_true", help="cut leading/trailing silence")
