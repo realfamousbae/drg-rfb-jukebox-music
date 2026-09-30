@@ -1,0 +1,6 @@
+slot,track
+# Optional. Copy to data/mapping.csv to pin tracks to specific slots; unlisted slots are filled round-robin.
+# slot  = SoundWave name or full /Game/... path from data/jukebox_slots.csv
+# track = file name inside tracks/
+# JukeBox_Disco_Night_Disco,01 My Best Song.flac
+# /Game/Audio/Music/JukeBox/TRJMusic/Techno_TRJ_02,02 Another One.mp3

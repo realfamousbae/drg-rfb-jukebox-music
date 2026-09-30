@@ -1,0 +1,11 @@
+# your source tracks and everything generated from them
+tracks/*
+!tracks/.gitkeep
+build/
+pak/
+dist/
+data/mapping.csv
+
+__pycache__/
+*.pyc
+.DS_Store
