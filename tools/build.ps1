@@ -10,7 +10,7 @@
 #>
 param(
     [Parameter(Mandatory = $true)][string]$Project,
-    [string]$UERoot = "C:\Program Files\Epic Games\UE_4.27",
+    [string]$UERoot = "",
     [string]$ModName = "RFB_Jukebox",
     [string]$Repak = "repak",
     [string]$Python = "python",
@@ -23,6 +23,14 @@ param(
 $ErrorActionPreference = "Stop"
 $Repo = Split-Path -Parent $PSScriptRoot
 $Project = (Resolve-Path $Project).Path
+if (-not $UERoot) {
+    # Wherever the Epic Games Launcher installed UE 4.27 (any drive), else the launcher's default folder.
+    $UERoot = Get-ChildItem "$env:ProgramData\Epic\EpicGamesLauncher\Data\Manifests" -Filter *.item -ErrorAction SilentlyContinue |
+        ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json } |
+        Where-Object { $_.AppName -eq "UE_4.27" } | Select-Object -First 1 -ExpandProperty InstallLocation
+    if (-not $UERoot) { $UERoot = "C:\Program Files\Epic Games\UE_4.27" }
+}
+Write-Host "UE 4.27: $UERoot"
 $Editor = Join-Path $UERoot "Engine\Binaries\Win64\UE4Editor-Cmd.exe"
 $RunUAT = Join-Path $UERoot "Engine\Build\BatchFiles\RunUAT.bat"
 $PakDir = Join-Path $Repo "pak\${ModName}_P"
