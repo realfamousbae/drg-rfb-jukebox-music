@@ -66,11 +66,17 @@ def measure(files):
 
 
 def normalize(src, dst, target_lufs, true_peak, sample_rate, trim):
-    """Two-pass EBU R128 loudnorm; returns the loudnorm report of the second pass."""
+    """Two-pass EBU R128 loudnorm; returns the loudnorm report of the second pass.
+
+    Always linear gain: if reaching target_lufs would push the true peak over true_peak, the track is
+    raised only as far as its peak allows (ends up a bit quieter) instead of letting loudnorm fall back
+    to dynamic mode, which compresses/pumps music."""
     pre = TRIM_FILTER + "," if trim else ""
-    target = f"I={target_lufs}:TP={true_peak}:LRA=20"
-    first = last_json(run_ffmpeg(["-i", str(src), "-af", f"{pre}loudnorm={target}:print_format=json",
+    first = last_json(run_ffmpeg(["-i", str(src), "-af",
+                                  f"{pre}loudnorm=I={target_lufs}:TP={true_peak}:LRA=20:print_format=json",
                                   "-f", "null", "-"]))
+    max_linear = float(first["input_i"]) + true_peak - float(first["input_tp"]) - 0.1
+    target = f"I={min(target_lufs, round(max_linear, 1))}:TP={true_peak}:LRA=20"
     measured = (f"measured_I={first['input_i']}:measured_TP={first['input_tp']}:"
                 f"measured_LRA={first['input_lra']}:measured_thresh={first['input_thresh']}:"
                 f"offset={first['target_offset']}")
@@ -87,7 +93,7 @@ def normalize(src, dst, target_lufs, true_peak, sample_rate, trim):
 def cache_key(src, args):
     st = src.stat()
     raw = f"{src.name}|{st.st_size}|{st.st_mtime_ns}|{args.target_lufs}|{args.true_peak}|" \
-          f"{args.sample_rate}|{args.trim_silence}"
+          f"{args.sample_rate}|{args.trim_silence}|linear-only"
     return hashlib.sha1(raw.encode()).hexdigest()
 
 
@@ -179,8 +185,13 @@ def build(args):
         print(f"{r['set']:<9}{r['asset_path'].rsplit('/', 1)[1][:56]:<58}{r['track']}")
     print()
     for track, (_, info) in infos.items():
-        flag = "" if info["mode"] in ("", "linear") else \
-            "  (loudnorm fell back to dynamic mode and compressed it; try a lower --target-lufs)"
+        quieter = args.target_lufs - float(info["output_lufs"])
+        if info["mode"] not in ("", "linear"):
+            flag = "  (loudnorm fell back to dynamic mode and compressed it)"
+        elif quieter > 0.3:
+            flag = f"  ({quieter:.1f} dB below target: peaks leave no more headroom)"
+        else:
+            flag = ""
         print(f"{info['output_lufs']:>7} LUFS {info['output_tp']:>6} dBTP {info['duration_sec']:7.1f}s  "
               f"{track.name}{flag}")
     print(f"\n{len(rows)} slots -> {IMPORT_DIR.relative_to(REPO)}/, manifest: {MANIFEST_CSV.relative_to(REPO)}")

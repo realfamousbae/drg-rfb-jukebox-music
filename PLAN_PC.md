@@ -40,8 +40,8 @@
 
 ## 4. Сборка, README §4
 
-- [ ] `powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project <путь>\FSD.uproject -TargetLufs <из шага 2> -TrimSilence`
-- [ ] Результат: `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Имя пака обязательно заканчивается на `_P`.
+- [x] `powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project X:\DRGModding\Audio-Modding-Template\FSD.uproject -Repak X:\DRGModding\tools\repak\repak.exe -TrimSilence -Shuffle -Seed 1`. Пользователь выбрал перемешанную раскладку: 26 треков на 39 слотов, 13 из них повторяются. Стримерские слоты оставляем зацикленными, как в ванили.
+- [x] Результат: `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Имя пака обязательно заканчивается на `_P`. Собрано 2026-10-01: пак ~178 МБ, 132 файла, V11. Слоты и флаги looping/streaming совпадают с ванилью. 24 трека звучат на −11 LUFS, №14 и №16 упираются в пики и тише на 0,6 и 1,3 dB: нормализация теперь только линейная, без сжатия.
 
 ## 5. Тест в игре, README §5
 

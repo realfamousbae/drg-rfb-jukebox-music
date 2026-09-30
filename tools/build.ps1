@@ -16,6 +16,8 @@ param(
     [string]$Python = "python",
     [double]$TargetLufs = -11,
     [switch]$TrimSilence,
+    [switch]$Shuffle,
+    [int]$Seed = 1,
     [switch]$SkipPrepare,
     [switch]$SkipImport,
     [switch]$SkipCook
@@ -48,6 +50,7 @@ try {
         Step "Prepare tracks"
         $prep = @("tools\prepare_tracks.py", "build", "--target-lufs", "$TargetLufs")
         if ($TrimSilence) { $prep += "--trim-silence" }
+        if ($Shuffle) { $prep += @("--order", "shuffle", "--seed", "$Seed") }
         & $Python @prep; Check "prepare_tracks.py"
     }
 

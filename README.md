@@ -68,18 +68,18 @@ python tools/fetch_tracks.py
 Можно и просто положить свои треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
 
 ```
-python tools/prepare_tracks.py build --target-lufs -11 --trim-silence
+python tools/prepare_tracks.py build --target-lufs -11 --trim-silence --order shuffle --seed 1
 ```
 - Каждый трек один раз конвертируется в WAV 48 кГц / 16 бит / стерео. Громкость выравнивается двухпроходным `loudnorm` до цели с потолком true peak −1 dBTP. Результат кэшируется в `build/normalized/`.
 - Обычный и стримерский наборы **независимо** проходят по всем трекам по кругу. Если треков меньше, чем слотов, они повторяются. Если больше, лишние не попадут в набор, и скрипт об этом предупредит.
-- Закрепить трек за конкретным слотом можно через `data/mapping.csv`. Опции `--order shuffle --seed N` перемешивают треки.
+- Закрепить трек за конкретным слотом можно через `data/mapping.csv`. Опции `--order shuffle --seed N` перемешивают треки. Для мода выбрано перемешивание с `--seed 1`: при том же seed и том же наборе треков раскладка одинакова на любой машине.
 - Результат: `build/import/Audio/Music/JukeBox/**/<Слот>.wav` и `build/import/manifest.csv`. В конце печатается таблица «слот → трек» и LUFS каждого трека.
 
 ## 3. Проект UE 4.27 (ПК, один раз)
 
 1. Открыть `FSD.uproject` из Audio-Modding-Template.
-2. Скопировать в него `Content/Audio` из EmptyContentHierarchy. Там лежат dummy SoundClass и Attenuation, на которые будут ссылаться наши SoundWave.
-3. Edit → Plugins: включить **Python Editor Script Plugin** и **Editor Scripting Utilities**, перезапустить редактор.
+2. ~~Скопировать в него `Content/Audio` из EmptyContentHierarchy.~~ Для джукбокса это не нужно. Ванильные песни не ссылаются на SoundClass и Attenuation (их задаёт `BP_JukeBox`), а `Audio/SoundControl` в шаблоне уже есть.
+3. Edit → Plugins: включить **Python Editor Script Plugin** и **Editor Scripting Utilities**, перезапустить редактор. Можно вместо этого вписать их в `FSD.uproject` в блок `"Plugins"`: `PythonScriptPlugin` и `EditorScriptingUtilities`, `"Enabled": true`.
 4. Project Settings → Packaging (или сразу вписать в `Config/DefaultGame.ini`):
    ```ini
    [/Script/UnrealEd.ProjectPackagingSettings]
@@ -93,8 +93,9 @@ python tools/prepare_tracks.py build --target-lufs -11 --trim-silence
 
 **Одной командой** (редактор UE закрыт):
 ```
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project C:\Mods\Audio-Modding-Template\FSD.uproject -TargetLufs -11 -TrimSilence
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project X:\DRGModding\Audio-Modding-Template\FSD.uproject -Repak X:\DRGModding\tools\repak\repak.exe -TrimSilence -Shuffle -Seed 1
 ```
+UE 4.27 скрипт сам находит через манифесты Epic Launcher. Путь к нему можно задать явно через `-UERoot`. `-TargetLufs` по умолчанию −11.
 Скрипт по очереди делает `prepare_tracks` → `ue_import.py` (headless) → `RunUAT BuildCookRun` → `collect_cooked` → `repak pack --version V11` → zip. На выходе `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Флаги `-SkipPrepare`, `-SkipImport`, `-SkipCook` позволяют продолжить с нужного шага.
 
 **Вручную** (если автоматический cook капризничает):
