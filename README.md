@@ -9,9 +9,10 @@
 
 ```
 tracks/                 твои треки (mp3/flac/wav/ogg/m4a/…), в git не попадают
+data/playlist.tsv       список треков: исполнители, название, длительность, ссылка на YouTube
 data/jukebox_slots.csv  слоты джукбокса: генерирует tools/scan_slots.py
 data/mapping.csv        (опц.) закрепить трек за слотом, образец: mapping.example.csv
-tools/                  scan_slots → prepare_tracks → ue_import → collect_cooked, build.ps1 делает всё разом
+tools/                  fetch_tracks скачивает треки; scan_slots → prepare_tracks → ue_import → collect_cooked, build.ps1 делает всё разом
 modio/                  черновик страницы мода и лого
 ```
 
@@ -25,6 +26,7 @@ modio/                  черновик страницы мода и лого
 | EmptyContentHierarchy (последняя) | https://github.com/DRG-Modding/tools | структура папок игры с dummy-ассетами `Audio/SoundControl` |
 | repak | https://github.com/trumank/repak/releases | упаковка в `.pak` (или DRGPacker из того же `DRG-Modding/tools`) |
 | Python 3.8+ и ffmpeg | python.org, `winget install ffmpeg` | скрипты |
+| yt-dlp и deno | `winget install yt-dlp.yt-dlp DenoLand.Deno` | скачивание треков (`fetch_tracks.py`) |
 | mint | https://github.com/trumank/mint | локальный тест и линтер пака |
 
 Репозиторий положи в путь **без пробелов**, например `C:\Mods\drg-rfb-music`.
@@ -47,7 +49,15 @@ modio/                  черновик страницы мода и лого
 
 ## 2. Подготовка треков (Mac или ПК)
 
-Положи треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
+Треки скачиваются по списку `data/playlist.tsv`: с YouTube берётся лучшее аудио, оно конвертируется в WAV 24 бит / 48 кГц.
+```
+python tools/fetch_tracks.py
+```
+Уже скачанные треки пропускаются. Исходники складываются в `tracks/_src/`. Строка N списка превращается в файл `NN Исполнители - Название.wav`.
+
+Как добавить трек: допиши строку в `playlist.tsv`, колонку `url` оставь пустой. `python tools/fetch_tracks.py --dry-run` найдёт видео, совпадающее по длительности со Spotify. Проверь его и впиши ссылку в `url`, тогда на всех машинах скачается одна и та же версия. Если ничего подходящего нет или видео с ограничением 18+, возьми ссылку вручную. Перекачать один трек: `--force --only N`.
+
+Можно и просто положить свои треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
 
 ```
 python tools/prepare_tracks.py build --target-lufs -16 --trim-silence
