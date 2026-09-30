@@ -11,32 +11,32 @@
 
 ## 0. Окружение
 
-- [ ] `git pull`
-- [ ] Поставить: `winget install yt-dlp.yt-dlp DenoLand.Deno Gyan.FFmpeg` и Python 3.8+. Deno нужен для `--remote-components ejs:github`.
-- [ ] Остальное по таблице в README §0: UE 4.27.2, FModel, Audio-Modding-Template, EmptyContentHierarchy, repak, mint.
-- [ ] Репозиторий должен лежать в пути без пробелов, например `C:\Mods\drg-rfb-music`.
+- [x] `git pull`
+- [x] Поставить: `winget install yt-dlp.yt-dlp DenoLand.Deno Gyan.FFmpeg` и Python 3.8+. Deno нужен для `--remote-components ejs:github`. (yt-dlp 2026.08.19, deno 2.9.7, ffmpeg 8.1.2, Python 3.14)
+- [x] Остальное по таблице в README §0. UE 4.27.2 стоит в `X:\Epic Games\UE_4.27`, остальное лежит в `X:\DRGModding`: `Audio-Modding-Template`, `tools\{repak,FModel,mint}`. EmptyContentHierarchy не понадобился: ванильные песни не ссылаются на SoundClass и Attenuation, а `Audio/SoundControl` уже есть в шаблоне.
+- [x] Репозиторий должен лежать в пути без пробелов. Сейчас он в `C:\Users\realfamousbae\Work\drg-rfb-music`.
 
 ## 1. Треки
 
-- [ ] `python tools/fetch_tracks.py`: должно получиться 26 файлов `tracks/NN ....wav`, исходники `.webm` в `tracks/_src/`.
-- [ ] На Windows скрипт ещё не запускался. Если что-то сломается, чини сам скрипт. Возможные проблемы:
+- [x] `python tools/fetch_tracks.py`: должно получиться 26 файлов `tracks/NN ....wav`, исходники `.webm` в `tracks/_src/`.
+- [x] На Windows скрипт отработал без правок (нужен `PYTHONUTF8=1`, если вывод перенаправляется в файл). Если что-то сломается, чини сам скрипт. Возможные проблемы:
   - кириллица в выводе или в именах файлов: попробуй `set PYTHONUTF8=1`;
   - `yt-dlp` не находит `deno`;
   - для строк с заданным `url` поиск не выполняется, поэтому искажённые названия от поиска на скачивание не влияют.
-- [ ] Проверить формат через `ffprobe`: 48000 Гц, 2 канала, 24 бит. Длительности должны совпадать с колонкой `duration` (±1 с).
+- [x] Проверить формат через `ffprobe`: 48000 Гц, 2 канала, 24 бит. Длительности должны совпадать с колонкой `duration` (±1 с). Все 26 треков: pcm_s24le 48 кГц стерео, отклонение от −0,7 до +0,8 с.
 
 ## 2. Слоты джукбокса (FModel), README §1
 
-- [ ] Экспортировать `FSD/Content/Audio/Music/JukeBox` в .json, затем `python tools/scan_slots.py "<FModel>\Output\Exports\FSD\Content\Audio\Music\JukeBox"`, затем закоммитить `data/jukebox_slots.csv`.
-- [ ] Сообщить пользователю число слотов в наборах `normal` и `streamer`. Треков сейчас 26, цель 39: если слотов больше, треки пойдут по кругу, если меньше, лишние не войдут. Пусть решит сам.
-- [ ] Выгрузить 1–2 ванильные песни и выполнить `python tools/prepare_tracks.py measure <файл>`. Полученный LUFS станет значением `--target-lufs`.
-- [ ] Посмотреть блюпринт джукбокса: не выводит ли он названия песен и не зашиты ли где-то длительности.
+- [x] Экспортировать `FSD/Content/Audio/Music/JukeBox` в .json, затем `python tools/scan_slots.py "<FModel>\Output\Exports\FSD\Content\Audio\Music\JukeBox"`, затем закоммитить `data/jukebox_slots.csv`. Сделано без FModel: `repak unpack` + `scan_slots.py` по сырым `.uasset` (README §1).
+- [x] Сообщить пользователю число слотов в наборах `normal` и `streamer`. **39 normal + 8 streamer.** Треков сейчас 26, цель 39: если слотов больше, треки пойдут по кругу, если меньше, лишние не войдут. Пусть решит сам.
+- [x] Выгрузить 1–2 ванильные песни и выполнить `python tools/prepare_tracks.py measure <файл>`. Полученный LUFS станет значением `--target-lufs`. Ваниль звучит примерно на −12…−9 LUFS, поэтому по умолчанию теперь `-11`.
+- [x] Посмотреть блюпринт джукбокса: не выводит ли он названия песен и не зашиты ли где-то длительности. Названий нет, на виджете только статичный список жанров. Длительности не зашиты: следующий трек включается по событию окончания звука, список треков приходит из `GetAvailableMusic`. SoundClass `Music_JukeBox` и затухание `GenericSoundAttenuation` задаёт AudioComponent самого `BP_JukeBox`.
 
 ## 3. Проект UE 4.27, README §3
 
-- [ ] Скопировать `Content/Audio` из EmptyContentHierarchy в Audio-Modding-Template.
-- [ ] Включить плагины Python Editor Script Plugin и Editor Scripting Utilities.
-- [ ] Прописать в `DefaultGame.ini` `+DirectoriesToNeverCook=(Path="/Game/Audio/SoundControl")`. Это обязательно, иначе не пройдёт авто-верификация.
+- [x] Скопировать `Content/Audio` из EmptyContentHierarchy в Audio-Modding-Template. Не нужно, см. §0.
+- [x] Включить плагины Python Editor Script Plugin и Editor Scripting Utilities. Прописаны в `FSD.uproject`, headless-запуск проверен.
+- [x] Прописать в `DefaultGame.ini` `+DirectoriesToNeverCook=(Path="/Game/Audio/SoundControl")`. Это обязательно, иначе не пройдёт авто-верификация. В шаблоне уже было.
 
 ## 4. Сборка, README §4
 
