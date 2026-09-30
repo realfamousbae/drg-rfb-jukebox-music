@@ -60,6 +60,8 @@ try {
 
     if (-not $SkipCook) {
         Step "Cook (WindowsNoEditor)"
+        # RunUAT.bat calls AutomationTool.exe from its own folder without .\ - breaks when this is set.
+        Remove-Item Env:NoDefaultCurrentDirectoryInExePath -ErrorAction SilentlyContinue
         & $RunUAT BuildCookRun "-project=$Project" -noP4 -platform=Win64 -clientconfig=Shipping `
             -cook -cookall -skipstage -nocompileeditor -unattended -utf8output
         Check "cook"
