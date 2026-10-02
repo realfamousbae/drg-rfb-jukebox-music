@@ -5,9 +5,10 @@
     python tools/fetch_tracks.py [--only 3 7]     # download + convert (skips tracks whose WAV already exists)
     python tools/fetch_tracks.py --url 3=https://youtu.be/...   # force a specific video for track 3
 
-playlist.tsv columns: artists, title, duration (m:ss, as shown in Spotify), url (optional).
+playlist.tsv columns: artists, title, duration (m:ss, as shown in Spotify), url (optional), trim (optional).
 A filled url pins the approved video; an empty one means "search YouTube" - after checking the pick with
 --dry-run, paste its URL into the row so every machine downloads the same version.
+trim "START-END" in seconds (either side may be empty) cuts a music video down to the song, e.g. "-163".
 Row N becomes "NN Artist - Title.wav".
 Sources (.webm/.m4a from yt-dlp -f ba) are kept in tracks/_src/. Requires yt-dlp and ffmpeg on PATH.
 """
@@ -41,13 +42,15 @@ def load_playlist():
     with PLAYLIST.open(encoding="utf-8") as f:
         rows = list(csv.DictReader(f, delimiter="\t"))
     return [{"n": i, "artists": [a.strip() for a in r["artists"].split(",")], "title": r["title"].strip(),
-             "duration": seconds(r["duration"]), "url": (r.get("url") or "").strip()}
+             "duration": seconds(r["duration"]), "url": (r.get("url") or "").strip(),
+             "trim": (r.get("trim") or "").strip()}
             for i, r in enumerate(rows, 1)]
 
 
 def search(track):
     query = f"{' '.join(track['artists'])} {track['title']}"
-    out = subprocess.run(["yt-dlp", "--flat-playlist", "--print", "%(id)s\t%(duration)s\t%(channel)s\t%(title)s",
+    # --encoding: on Windows yt-dlp otherwise prints in the console code page (e.g. cp1251) when piped
+    out = subprocess.run(["yt-dlp", "--encoding", "utf-8", "--flat-playlist", "--print", "%(id)s\t%(duration)s\t%(channel)s\t%(title)s",
                           f"ytsearch{SEARCH_N}:{query}"], capture_output=True, text=True, encoding="utf-8")
     results = []
     for line in out.stdout.splitlines():
@@ -100,8 +103,10 @@ def download_and_convert(track, url, wav):
     src = next((p for p in SRC_DIR.glob(f"{glob_escape(stem)}.*") if p.suffix != ".part"), None)
     if not src:
         raise StepFailed("yt-dlp produced no file")
-    # 2. WAV 24-bit / 48 kHz
-    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src), "-vn",
+    # 2. WAV 24-bit / 48 kHz, optionally trimmed to the song (playlist.tsv "trim" = "START-END")
+    start, _, end = track["trim"].partition("-")
+    cut = (["-ss", start] if start else []) + (["-to", end] if end else [])
+    run(["ffmpeg", "-hide_banner", "-loglevel", "error", "-y", "-i", str(src), *cut, "-vn",
          "-c:a", "pcm_s24le", "-ar", "48000", str(wav)])
 
 
