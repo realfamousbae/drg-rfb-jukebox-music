@@ -163,6 +163,52 @@ def load_mapping(slots, tracks):
     return mapping
 
 
+FADE_OUT = 2.5
+LOOP_XFADE = 1.5
+MAX_TAIL_GAP = 10.0  # up to this many seconds short of the slot: end naturally + silence instead of looping
+
+
+def fit_to_slot(src, dst, total, cut, slot_dur, sample_rate):
+    """Render exactly slot_dur seconds of a normalized track for one slot.
+
+    The game ends each jukebox song after its *vanilla* duration (read from the game's AssetRegistry,
+    which a mod pak cannot replace), so every replacement must be exactly that long: start at the
+    hook/drop (cut) - or earlier if the slot is long enough to afford it - and fade out at the end.
+    A track shorter than the slot keeps playing by repeating from the drop (crossfaded) instead of
+    leaving silence. Returns (start, looped)."""
+    start = min(cut, max(0.0, total - slot_dur))
+    remaining = total - start
+    fade_in = ",afade=t=in:d=0.3" if start > 0 else ""
+    if 0 < slot_dur - remaining <= MAX_TAIL_GAP:
+        # a few seconds short: let the song end naturally, pad the rest with silence (no fade, no loop)
+        graph = (f"[0:a]atrim=start={start},asetpts=PTS-STARTPTS{fade_in},apad=whole_dur={slot_dur},"
+                 f"atrim=duration={slot_dur}[out]")
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        run_ffmpeg(["-y", "-i", str(src), "-filter_complex", graph, "-map", "[out]",
+                    "-ar", str(sample_rate), "-ac", "2", "-c:a", "pcm_s16le", str(dst)])
+        return start, False
+    if remaining >= slot_dur:
+        graph = f"[0:a]atrim=start={start},asetpts=PTS-STARTPTS[x]"
+        looped = False
+    else:
+        loop_len = total - cut - LOOP_XFADE
+        n = 1 + max(1, int((slot_dur - remaining) // max(loop_len, 1.0)) + 1)
+        parts = [f"[0:a]asplit={n}" + "".join(f"[s{i}]" for i in range(n))]
+        parts.append(f"[s0]atrim=start={start},asetpts=PTS-STARTPTS[c0]")
+        for i in range(1, n):
+            parts.append(f"[s{i}]atrim=start={cut},asetpts=PTS-STARTPTS[r{i}]")
+            parts.append(f"[c{i - 1}][r{i}]acrossfade=d={LOOP_XFADE}[c{i}]")
+        parts.append(f"[c{n - 1}]anull[x]")
+        graph = ";".join(parts)
+        looped = True
+    graph += (f";[x]atrim=duration={slot_dur},asetpts=PTS-STARTPTS{fade_in},"
+              f"afade=t=out:st={max(0.0, slot_dur - FADE_OUT):.3f}:d={FADE_OUT}[out]")
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    run_ffmpeg(["-y", "-i", str(src), "-filter_complex", graph, "-map", "[out]",
+                "-ar", str(sample_rate), "-ac", "2", "-c:a", "pcm_s16le", str(dst)])
+    return start, looped
+
+
 def build(args):
     if not shutil.which("ffmpeg") or not shutil.which("ffprobe"):
         die("ffmpeg/ffprobe not found on PATH")
@@ -183,33 +229,51 @@ def build(args):
         if len(tracks) > len(set_slots):
             print(f"warning: {len(tracks)} tracks but only {len(set_slots)} {set_name} slots - "
                   f"{len(tracks) - len(set_slots)} tracks will not play in that set")
+        if args.fit_slots and set_name == "normal":
+            # longest tracks into the longest slots, so trimming/looping is minimal
+            pool = sorted(tracks[:len(free)], key=lambda t: probe_duration(t), reverse=True)
+            for s, t in zip(sorted(free, key=lambda s: float(s["duration_sec"]), reverse=True), pool):
+                assignment[s["asset_path"]] = t
+            for i, s in enumerate(free[len(pool):]):
+                assignment[s["asset_path"]] = tracks[i % len(tracks)]
+            continue
         for i, s in enumerate(free):
             assignment[s["asset_path"]] = tracks[i % len(tracks)]
     assignment.update(mapping)
 
     print(f"normalizing to {args.target_lufs} LUFS / {args.true_peak} dBTP, {args.sample_rate} Hz")
     cuts = load_cuts(tracks)
-    infos = {t: normalized_track(t, args, cuts.get(t, 0.0)) for t in sorted(set(assignment.values()))}
+    # with --fit-slots the cut is applied per slot (fit_to_slot), so normalize whole tracks
+    infos = {t: normalized_track(t, args, 0.0 if args.fit_slots else cuts.get(t, 0.0))
+             for t in sorted(set(assignment.values()))}
 
     if IMPORT_DIR.exists():
         shutil.rmtree(IMPORT_DIR)
-    rows = []
+    rows, notes = [], {}
     for s in slots:
         track = assignment[s["asset_path"]]
         norm, info = infos[track]
         wav = IMPORT_DIR / (s["asset_path"][len("/Game/"):] + ".wav")
         wav.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(norm, wav)
+        duration = info["duration_sec"]
+        if args.fit_slots and s.get("duration_sec"):
+            duration = float(s["duration_sec"])
+            start, looped = fit_to_slot(norm, wav, info["duration_sec"], cuts.get(track, 0.0), duration,
+                                        args.sample_rate)
+            notes[s["asset_path"]] = f"{start:5.0f}s+{'loop' if looped else ''}"
+        else:
+            shutil.copyfile(norm, wav)
         rows.append({**{k: s.get(k, "") for k in WAVE_PROPS},
                      "asset_path": s["asset_path"], "wav": wav.relative_to(REPO).as_posix(),
-                     "track": track.name, "set": s["set"], "duration_sec": info["duration_sec"],
+                     "track": track.name, "set": s["set"], "duration_sec": round(duration, 2),
                      "output_lufs": info["output_lufs"]})
     write_csv(MANIFEST_CSV, MANIFEST_FIELDS, rows)
 
     print()
-    print(f"{'set':<9}{'slot':<58}{'track'}")
+    print(f"{'set':<9}{'slot':<44}{'len':>7} {'from':<11}{'track'}")
     for r in rows:
-        print(f"{r['set']:<9}{r['asset_path'].rsplit('/', 1)[1][:56]:<58}{r['track']}")
+        print(f"{r['set']:<9}{r['asset_path'].rsplit('/', 1)[1][:42]:<44}{r['duration_sec']:>6.0f}s "
+              f"{notes.get(r['asset_path'], ''):<11}{r['track']}")
     print()
     for track, (_, info) in infos.items():
         quieter = args.target_lufs - float(info["output_lufs"])
@@ -238,6 +302,9 @@ def main():
     b.add_argument("--order", choices=["name", "shuffle"], default="name",
                    help="round-robin order of tracks (default: by file name)")
     b.add_argument("--seed", type=int, default=1, help="seed for --order shuffle")
+    b.add_argument("--fit-slots", action="store_true",
+                   help="render every slot at exactly its vanilla duration (the game cuts songs there): "
+                        "long tracks to long slots, start at the cut from data/cuts.csv, fade out at the end")
     args = ap.parse_args()
     if args.cmd == "measure":
         measure(args.files)

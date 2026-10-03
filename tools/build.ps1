@@ -17,6 +17,7 @@ param(
     [double]$TargetLufs = -11,
     [switch]$TrimSilence,
     [switch]$Shuffle,
+    [switch]$FitSlots,
     [int]$Seed = 1,
     [switch]$SkipPrepare,
     [switch]$SkipImport,
@@ -51,6 +52,7 @@ try {
         $prep = @("tools\prepare_tracks.py", "build", "--target-lufs", "$TargetLufs")
         if ($TrimSilence) { $prep += "--trim-silence" }
         if ($Shuffle) { $prep += @("--order", "shuffle", "--seed", "$Seed") }
+        if ($FitSlots) { $prep += "--fit-slots" }
         & $Python @prep; Check "prepare_tracks.py"
     }
 

@@ -68,11 +68,12 @@ python tools/fetch_tracks.py
 Можно и просто положить свои треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
 
 ```
-python tools/prepare_tracks.py build --target-lufs -11 --trim-silence --order shuffle --seed 1
+python tools/prepare_tracks.py build --target-lufs -11 --trim-silence --order shuffle --seed 1 --fit-slots
 ```
 - Каждый трек один раз конвертируется в WAV 48 кГц / 16 бит / стерео. Громкость выравнивается двухпроходным `loudnorm` до цели с потолком true peak −1 dBTP. Результат кэшируется в `build/normalized/`.
 - Обычный и стримерский наборы **независимо** проходят по всем трекам по кругу. Если треков меньше, чем слотов, они повторяются. Если больше, лишние не попадут в набор, и скрипт об этом предупредит.
-- Джукбокс в игре примерно через 30–50 с плавно глушит песню. Поэтому `data/cuts.csv` (`track,start`: номер трека и сколько секунд отрезать от начала) сдвигает каждый трек так, чтобы хук или дроп звучал в первые секунды. Точки подобраны автоматически по громкости и басу, их можно править руками. Исходные WAV при этом не меняются.
+- **Игра проигрывает каждый слот ровно его ванильную длительность.** Она берёт её из своего `AssetRegistry.bin`, а мод его заменить не может. По истечении этого времени песня затухает. Если трек короче, остаток играет тишина. Поэтому сборка идёт с `--fit-slots` (в `build.ps1` это `-FitSlots`): длинные треки ставятся в длинные слоты, каждый файл рендерится ровно на длину слота и затухает в конце. Если трек короче слота больше чем на 10 с, он доигрывает повтором с дропа.
+- `data/cuts.csv` (`track,start`) задаёт, с какой секунды трек начинается, то есть хук или дроп. Если слот длиннее остатка трека, начало сдвигается раньше. Точки подобраны автоматически по громкости и басу, их можно править руками. Исходные WAV не меняются.
 - Закрепить трек за конкретным слотом можно через `data/mapping.csv`. Опции `--order shuffle --seed N` перемешивают треки. Для мода выбрано перемешивание с `--seed 1`: при том же seed и том же наборе треков раскладка одинакова на любой машине.
 - Результат: `build/import/Audio/Music/JukeBox/**/<Слот>.wav` и `build/import/manifest.csv`. В конце печатается таблица «слот → трек» и LUFS каждого трека.
 
@@ -94,7 +95,7 @@ python tools/prepare_tracks.py build --target-lufs -11 --trim-silence --order sh
 
 **Одной командой** (редактор UE закрыт):
 ```
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project X:\DRGModding\Audio-Modding-Template\FSD.uproject -Repak X:\DRGModding\tools\repak\repak.exe -TrimSilence -Shuffle -Seed 1
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project X:\DRGModding\Audio-Modding-Template\FSD.uproject -Repak X:\DRGModding\tools\repak\repak.exe -TrimSilence -Shuffle -Seed 1 -FitSlots
 ```
 UE 4.27 скрипт сам находит через манифесты Epic Launcher. Путь к нему можно задать явно через `-UERoot`. `-TargetLufs` по умолчанию −11.
 Скрипт по очереди делает `prepare_tracks` → `ue_import.py` (headless) → `RunUAT BuildCookRun` → `collect_cooked` → `repak pack --version V11` → zip. На выходе `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Флаги `-SkipPrepare`, `-SkipImport`, `-SkipCook` позволяют продолжить с нужного шага.
