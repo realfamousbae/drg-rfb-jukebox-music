@@ -68,6 +68,8 @@ All music belongs to its respective artists and labels.
 
 ## Tags
 `Audio`. **Не ставить** `[AimedForVerified]`, `[AimedForApproved]`, `[AimedForSandbox]`.
+- **Game Version**: только текущая, на которой мод собран и проверен (на 2026-10-04 это `1.40`).
+- **Required**: `Optional`. Мод клиентский, у других игроков в лобби его быть не должно. `RequiredByAll` закрыл бы вход друзьям без мода.
 
 ## Visibility
 **Hidden**. Друзей добавить в Team мода.
