@@ -9,6 +9,7 @@ BUILD = REPO / "build"
 
 SLOTS_CSV = DATA / "jukebox_slots.csv"
 MAPPING_CSV = DATA / "mapping.csv"
+CUTS_CSV = DATA / "cuts.csv"
 IMPORT_DIR = BUILD / "import"
 MANIFEST_CSV = IMPORT_DIR / "manifest.csv"
 

@@ -19,7 +19,7 @@ import subprocess
 from collections import defaultdict
 from pathlib import Path
 
-from common import (IMPORT_DIR, MANIFEST_CSV, MAPPING_CSV, REPO, BUILD, WAVE_PROPS, die, load_slots,
+from common import (CUTS_CSV, IMPORT_DIR, MANIFEST_CSV, MAPPING_CSV, REPO, BUILD, WAVE_PROPS, die, load_slots,
                     read_csv, write_csv)
 
 TRACKS_DIR = REPO / "tracks"
@@ -65,13 +65,15 @@ def measure(files):
               f"LRA {stats['input_lra']:>5}  {probe_duration(f):7.1f}s  {f}")
 
 
-def normalize(src, dst, target_lufs, true_peak, sample_rate, trim):
+def normalize(src, dst, target_lufs, true_peak, sample_rate, trim, start=0.0):
     """Two-pass EBU R128 loudnorm; returns the loudnorm report of the second pass.
 
+    start > 0 drops the first `start` seconds (data/cuts.csv) with a short fade-in.
     Always linear gain: if reaching target_lufs would push the true peak over true_peak, the track is
     raised only as far as its peak allows (ends up a bit quieter) instead of letting loudnorm fall back
     to dynamic mode, which compresses/pumps music."""
-    pre = TRIM_FILTER + "," if trim else ""
+    pre = f"atrim=start={start},asetpts=PTS-STARTPTS,afade=t=in:d=0.3," if start else ""
+    pre += TRIM_FILTER + "," if trim else ""
     first = last_json(run_ffmpeg(["-i", str(src), "-af",
                                   f"{pre}loudnorm=I={target_lufs}:TP={true_peak}:LRA=20:print_format=json",
                                   "-f", "null", "-"]))
@@ -90,26 +92,50 @@ def normalize(src, dst, target_lufs, true_peak, sample_rate, trim):
     return second
 
 
-def cache_key(src, args):
+def cache_key(src, args, start):
     st = src.stat()
     raw = f"{src.name}|{st.st_size}|{st.st_mtime_ns}|{args.target_lufs}|{args.true_peak}|" \
-          f"{args.sample_rate}|{args.trim_silence}|linear-only"
+          f"{args.sample_rate}|{args.trim_silence}|linear-only|start={start}"
     return hashlib.sha1(raw.encode()).hexdigest()
 
 
-def normalized_track(src, args):
+def load_cuts(tracks):
+    """data/cuts.csv: columns track,start[,note] - track is the NN number prefix or a file name in tracks/;
+    start = seconds to drop from the beginning so the hook/drop comes early (the jukebox fades songs out
+    after roughly 30-50 s)."""
+    if not CUTS_CSV.exists():
+        return {}
+    by_key = {t.name: t for t in tracks}
+    for t in tracks:
+        num = t.name.split(" ", 1)[0]
+        if num.isdigit():
+            by_key[str(int(num))] = t
+    cuts = {}
+    for row in read_csv(CUTS_CSV):
+        key, start = (row.get("track") or "").strip(), (row.get("start") or "").strip()
+        if not key or key.startswith("#") or not start:
+            continue
+        track = by_key.get(key) or by_key.get(key.lstrip("0"))
+        if track is None:
+            die(f"cuts.csv: track '{key}' not found in tracks/")
+        cuts[track] = float(start)
+    return cuts
+
+
+def normalized_track(src, args, start=0.0):
     """Normalise src once and cache it in build/normalized (re-done only when inputs change)."""
     dst = NORMALIZED_DIR / f"{src.stem}_{src.suffix.lstrip('.').lower()}.wav"
     meta = dst.with_suffix(".json")
-    key = cache_key(src, args)
+    key = cache_key(src, args, start)
     if dst.exists() and meta.exists():
         cached = json.loads(meta.read_text())
         if cached.get("key") == key:
             return dst, cached
-    print(f"  normalizing {src.name} ...")
-    report = normalize(src, dst, args.target_lufs, args.true_peak, args.sample_rate, args.trim_silence)
+    print(f"  normalizing {src.name}" + (f" from {start:g}s" if start else "") + " ...")
+    report = normalize(src, dst, args.target_lufs, args.true_peak, args.sample_rate, args.trim_silence, start)
     info = {"key": key, "output_lufs": report["output_i"], "output_tp": report["output_tp"],
-            "mode": report.get("normalization_type", ""), "duration_sec": round(probe_duration(dst), 2)}
+            "mode": report.get("normalization_type", ""), "duration_sec": round(probe_duration(dst), 2),
+            "start": start}
     meta.write_text(json.dumps(info, indent=2))
     return dst, info
 
@@ -162,7 +188,8 @@ def build(args):
     assignment.update(mapping)
 
     print(f"normalizing to {args.target_lufs} LUFS / {args.true_peak} dBTP, {args.sample_rate} Hz")
-    infos = {t: normalized_track(t, args) for t in sorted(set(assignment.values()))}
+    cuts = load_cuts(tracks)
+    infos = {t: normalized_track(t, args, cuts.get(t, 0.0)) for t in sorted(set(assignment.values()))}
 
     if IMPORT_DIR.exists():
         shutil.rmtree(IMPORT_DIR)
