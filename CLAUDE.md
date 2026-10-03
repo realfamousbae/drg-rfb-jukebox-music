@@ -1,4 +1,4 @@
-# drg-rfb-music
+# drg-rfb-jukebox-music
 
 Мод для Deep Rock Galactic: заменяет музыку джукбокса на свои треки. Как всё устроено и как собирать, описано в [README.md](README.md).
 

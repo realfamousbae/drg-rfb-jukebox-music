@@ -31,6 +31,7 @@ data/
   jukebox_slots.csv    слоты джукбокса и их ванильные свойства
   mapping.example.csv  образец data/mapping.csv: закрепить трек за слотом
 modio/description.md   тексты и настройки страницы мода на mod.io
+CHANGELOG.md           история версий
 tools/
   fetch_tracks.py      скачивает треки из playlist.tsv в tracks/ (WAV 24 бит / 48 кГц)
   scan_slots.py        список слотов из пака игры (repak unpack) или из экспорта FModel

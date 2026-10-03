@@ -7,7 +7,7 @@
 | Name | `RFB Jukebox` |
 | Visibility | Hidden (friends are added to the mod's Team) |
 | Tags | `Audio` (no `[AimedFor...]`) |
-| Game Version | the one the pak was built and tested on (1.40 for v1.0) |
+| Game Version | the one the pak was built and tested on (1.40 for v1.0.0) |
 | Required | `Optional`: client-side, other players don't need it |
 | Logo | 16:9, at least 512×288 |
 | File | `dist/RFB_Jukebox.zip` |
