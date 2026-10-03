@@ -1,141 +1,77 @@
-# RFB Jukebox — свои треки в джукбоксе Deep Rock Galactic
+# RFB Jukebox
 
-Мод заменяет все песни джукбокса в баре Space Rig, включая набор для стримерского режима (`TRJMusic`), на треки из папки `tracks/`. В пак попадают только аудиоассеты, поэтому игра сама помечает мод как **Verified**: прогресс и обычные лобби не затрагиваются.
+Мод для **Deep Rock Galactic**: все песни джукбокса в баре Space Rig, включая набор стримерского режима, заменены на 39 треков Lida, CMH и компании.
 
-Как это работает: у песен джукбокса нет Sound Cue, игра проигрывает SoundWave-ассеты из `Content/Audio/Music/JukeBox/**` напрямую. Мы готовим в UE 4.27 ассеты **с теми же именами и путями**, собираем из них `RFB_Jukebox_P.pak` и загружаем на mod.io.
+- **Только звук.** В паке лежат одни SoundWave-ассеты, игровые блюпринты не тронуты.
+- **На клиенте.** Музыку слышит только тот, у кого стоит мод. Остальным игрокам в лобби мод не нужен.
+- **Каждый трек начинается с хука или дропа** и подогнан под время, которое игра отводит песне.
 
-- **Mac** — подготовка треков (`tools/prepare_tracks.py`) и правки скриптов.
-- **Windows-ПК** — разведка через FModel, UE 4.27, cook, пак, тест в игре. Официальный UE 4.27 на macOS не умеет делать cook под Windows.
+## Как это устроено
+
+У песен джукбокса нет Sound Cue: `BP_JukeBox` проигрывает SoundWave из `Content/Audio/Music/JukeBox/**` напрямую. Мод собирает в UE 4.27 ассеты **с теми же путями и именами** и упаковывает их в `RFB_Jukebox_P.pak`.
+
+| Набор | Слотов | Ванильная длительность | Особенности |
+|---|---|---|---|
+| `normal` | 39 | 1:01 – 4:20 | streaming |
+| `streamer` (`TRJMusic`) | 8 | 0:51 – 2:36 | без streaming, `bLooping` |
+
+Что выяснилось по ходу работы:
+
+- **Игра проигрывает каждый слот ровно его ванильную длительность.** Она берёт её из своего `AssetRegistry.bin`, который мод заменить не может, а не из ассета. Длинный трек затухнет раньше, после короткого останется тишина. Поэтому каждый слот рендерится ровно на свою ванильную длину (`--fit-slots`). Длинные треки ставятся в длинные слоты, начало берётся из `data/cuts.csv`. Если трек короче слота больше чем на 10 с, он доигрывает повтором с дропа.
+- **Громкость и затухание с расстоянием задаёт `BP_JukeBox`** (SoundClass `Music_JukeBox`, `GenericSoundAttenuation`). У самих SoundWave их нет, поэтому заглушки из EmptyContentHierarchy не нужны.
+- **Ваниль звучит примерно на −12…−9 LUFS.** Треки выравниваются до −11 LUFS при потолке −1 dBTP, только линейным усилением, без компрессии. Трек, которому пики не дают дотянуть до цели, остаётся чуть тише.
+- Ванильный множитель `Volume` (1.7 у одного слота) не переносится: он компенсировал тихий ванильный трек.
+
+## Структура
 
 ```
-tracks/                 твои треки (mp3/flac/wav/ogg/m4a/…), в git не попадают
-data/playlist.tsv       список треков: исполнители, название, длительность, ссылка на YouTube
-data/jukebox_slots.csv  слоты джукбокса: генерирует tools/scan_slots.py
-data/mapping.csv        (опц.) закрепить трек за слотом, образец: mapping.example.csv
-tools/                  fetch_tracks скачивает треки; scan_slots → prepare_tracks → ue_import → collect_cooked, build.ps1 делает всё разом
-modio/                  черновик страницы мода и лого
+data/
+  playlist.tsv         треклист: исполнители, название, длительность, ссылка на YouTube, обрезка клипа
+  cuts.csv             с какой секунды начинается каждый трек (хук/дроп)
+  jukebox_slots.csv    слоты джукбокса и их ванильные свойства
+  mapping.example.csv  образец data/mapping.csv: закрепить трек за слотом
+modio/description.md   тексты и настройки страницы мода на mod.io
+tools/
+  fetch_tracks.py      скачивает треки из playlist.tsv в tracks/ (WAV 24 бит / 48 кГц)
+  scan_slots.py        список слотов из пака игры (repak unpack) или из экспорта FModel
+  prepare_tracks.py    громкость, срезы, раскладка по слотам → build/import/
+  ue_import.py         импорт WAV в UE-проект как SoundWave с ванильными флагами
+  collect_cooked.py    берёт из cook только ассеты слотов
+  build.ps1            всё по порядку: подготовка → импорт → cook → пак → zip
+tracks/                аудио, в git не хранится
 ```
 
-## 0. Установка на Windows-ПК (один раз)
+## Сборка
 
-| Что | Где взять | Зачем |
-|---|---|---|
-| Unreal Engine **4.27.2** | Epic Games Launcher (показывается как 4.27) | импорт и cook |
-| FModel | https://github.com/iAmAsval/FModel | посмотреть и выгрузить ассеты игры |
-| Audio-Modding-Template, ветка `main` | https://github.com/DRG-Modding/Audio-Modding-Template | UE-проект `FSD.uproject` |
-| EmptyContentHierarchy (последняя) | https://github.com/DRG-Modding/tools | структура папок игры с dummy-ассетами `Audio/SoundControl` |
-| repak | https://github.com/trumank/repak/releases | упаковка в `.pak` (или DRGPacker из того же `DRG-Modding/tools`) |
-| Python 3.8+ и ffmpeg | python.org, `winget install ffmpeg` | скрипты |
-| yt-dlp и deno | `winget install yt-dlp.yt-dlp DenoLand.Deno` | скачивание треков (`fetch_tracks.py`) |
-| mint | https://github.com/trumank/mint | локальный тест и линтер пака |
+Нужны Windows, **UE 4.27.2**, [Audio-Modding-Template](https://github.com/DRG-Modding/Audio-Modding-Template) (в `FSD.uproject` включены `PythonScriptPlugin` и `EditorScriptingUtilities`), [repak](https://github.com/trumank/repak), Python 3.8+ (только стандартная библиотека), ffmpeg, yt-dlp и deno. Путь к репозиторию без пробелов.
 
-Репозиторий положи в путь **без пробелов**, например `C:\Mods\drg-rfb-music`.
-
-## 1. Какие слоты есть в игре (FModel, ПК)
-
-**Быстрый путь без FModel** (repak):
-```
-repak unpack -i FSD/Content/Audio/Music/JukeBox -o X:\DRGModding\vanilla "<DRG>\FSD\Content\Paks\FSD-WindowsNoEditor.pak"
-python tools/scan_slots.py X:\DRGModding\vanilla\FSD\Content\Audio\Music\JukeBox
-```
-Скрипт сам читает из ассетов `Duration`, `Volume`, `bLooping` и `bStreaming`. На билде 25433570 получилось 39 обычных слотов и 8 стримерских. SoundClass и Attenuation у ванильных песен не заданы. FModel по-прежнему нужен для п. 4–5.
-
-Через FModel:
-1. FModel → Directory → Selector → папка DRG → загрузить `FSD-WindowsNoEditor.pak`.
-2. Правый клик по `FSD/Content/Audio/Music/JukeBox` → **Save Folder's Packages Properties (.json)**.
-3. Собрать список слотов:
-   ```
-   python tools/scan_slots.py "<FModel>\Output\Exports\FSD\Content\Audio\Music\JukeBox"
-   ```
-   Скрипт запишет `data/jukebox_slots.csv`: путь, имя, набор (`normal` или `streamer`), длительность, а также ванильные SoundClass, Attenuation, Volume, CompressionQuality, Looping и Streaming. SoundWave короче 30 с (реплики гномов) он пропускает и выводит их список. `Jukebox_Cue` — это реплики, не музыка. Закоммить CSV.
-4. Выгрузить 1–2 ванильные песни (правый клик → Export Raw Data / Save Audio) и замерить их громкость:
-   ```
-   python tools/prepare_tracks.py measure path\to\vanilla.ogg
-   ```
-   Полученное значение LUFS подставь в `--target-lufs` на следующем шаге, чтобы твои треки звучали так же громко, как ванильные. На билде 25433570 ванильные песни звучат примерно на −12…−9 LUFS, отсюда значение по умолчанию −11.
-5. Заодно посмотри блюпринт джукбокса: не выводит ли он названия песен и не зашиты ли где-то длительности. Названия и жанры в UI останутся ванильными: их правка — уже не аудио, и авто-верификация слетит.
-
-## 2. Подготовка треков (Mac или ПК)
-
-Треки скачиваются по списку `data/playlist.tsv`: с YouTube берётся лучшее аудио, оно конвертируется в WAV 24 бит / 48 кГц.
 ```
 python tools/fetch_tracks.py
+powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project <template>\FSD.uproject -Repak <repak.exe> -TrimSilence -Shuffle -Seed 1 -FitSlots
 ```
-Уже скачанные треки пропускаются. Исходники складываются в `tracks/_src/`. Строка N списка превращается в файл `NN Исполнители - Название.wav`.
 
-Как добавить трек: допиши строку в `playlist.tsv`, колонку `url` оставь пустой. `python tools/fetch_tracks.py --dry-run` найдёт видео, совпадающее по длительности со Spotify. Проверь его и впиши ссылку в `url`, тогда на всех машинах скачается одна и та же версия. Если ничего подходящего нет или видео с ограничением 18+, возьми ссылку вручную. Перекачать один трек: `--force --only N`.
+Результат: `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip` для mod.io. Редактор UE при сборке должен быть закрыт. Путь к UE 4.27 скрипт находит сам через Epic Launcher, задать его вручную можно параметром `-UERoot`. Продолжить с середины можно флагами `-SkipPrepare`, `-SkipImport`, `-SkipCook`.
 
-Можно и просто положить свои треки в `tracks/`. Порядок раскладки определяется именем файла, так что удобно добавлять префиксы `01 `, `02 ` и т.д.
+Для локального теста `.pak` удобно ставить через [mint](https://github.com/trumank/mint).
+
+### Треки
+
+- `fetch_tracks.py` скачивает лучшее аудио по ссылке из `playlist.tsv` и пропускает уже скачанное. Строка N становится файлом `tracks/NN Исполнители - Название.wav`.
+- Для строки с пустым `url` скрипт ищет видео на YouTube по длительности. Посмотреть, что он выбрал, можно через `--dry-run`, перекачать один трек через `--force --only N`.
+- Колонка `trim` (`START-END`, в секундах) обрезает клип до самой песни, например `-163`.
+- В `cuts.csv` в колонке `start` указано, сколько секунд срезать в начале, чтобы трек стартовал с хука или дропа. Точки подобраны по громкости и басу и правятся вручную.
+- `-Shuffle -Seed 1` даёт одинаковую раскладку на любой машине. В `data/mapping.csv` трек можно закрепить за конкретным слотом.
+
+## После патча DRG
 
 ```
-python tools/prepare_tracks.py build --target-lufs -11 --trim-silence --order shuffle --seed 1 --fit-slots
+repak unpack -i FSD/Content/Audio/Music/JukeBox -o <dir> "<DRG>\FSD\Content\Paks\FSD-WindowsNoEditor.pak"
+python tools/scan_slots.py <dir>\FSD\Content\Audio\Music\JukeBox
+git diff data/jukebox_slots.csv
 ```
-- Каждый трек один раз конвертируется в WAV 48 кГц / 16 бит / стерео. Громкость выравнивается двухпроходным `loudnorm` до цели с потолком true peak −1 dBTP. Результат кэшируется в `build/normalized/`.
-- Обычный и стримерский наборы **независимо** проходят по всем трекам по кругу. Если треков меньше, чем слотов, они повторяются. Если больше, лишние не попадут в набор, и скрипт об этом предупредит.
-- **Игра проигрывает каждый слот ровно его ванильную длительность.** Она берёт её из своего `AssetRegistry.bin`, а мод его заменить не может. По истечении этого времени песня затухает. Если трек короче, остаток играет тишина. Поэтому сборка идёт с `--fit-slots` (в `build.ps1` это `-FitSlots`): длинные треки ставятся в длинные слоты, каждый файл рендерится ровно на длину слота и затухает в конце. Если трек короче слота больше чем на 10 с, он доигрывает повтором с дропа.
-- `data/cuts.csv` (`track,start`) задаёт, с какой секунды трек начинается, то есть хук или дроп. Если слот длиннее остатка трека, начало сдвигается раньше. Точки подобраны автоматически по громкости и басу, их можно править руками. Исходные WAV не меняются.
-- Закрепить трек за конкретным слотом можно через `data/mapping.csv`. Опции `--order shuffle --seed N` перемешивают треки. Для мода выбрано перемешивание с `--seed 1`: при том же seed и том же наборе треков раскладка одинакова на любой машине.
-- Результат: `build/import/Audio/Music/JukeBox/**/<Слот>.wav` и `build/import/manifest.csv`. В конце печатается таблица «слот → трек» и LUFS каждого трека.
 
-## 3. Проект UE 4.27 (ПК, один раз)
+Если слоты и их длительности не изменились, мод пересобирать не нужно. Если изменились, пересобери и залей новую версию файла в тот же мод на mod.io.
 
-1. Открыть `FSD.uproject` из Audio-Modding-Template.
-2. ~~Скопировать в него `Content/Audio` из EmptyContentHierarchy.~~ Для джукбокса это не нужно. Ванильные песни не ссылаются на SoundClass и Attenuation (их задаёт `BP_JukeBox`), а `Audio/SoundControl` в шаблоне уже есть.
-3. Edit → Plugins: включить **Python Editor Script Plugin** и **Editor Scripting Utilities**, перезапустить редактор. Можно вместо этого вписать их в `FSD.uproject` в блок `"Plugins"`: `PythonScriptPlugin` и `EditorScriptingUtilities`, `"Enabled": true`.
-4. Project Settings → Packaging (или сразу вписать в `Config/DefaultGame.ini`):
-   ```ini
-   [/Script/UnrealEd.ProjectPackagingSettings]
-   UsePakFile=False
-   bShareMaterialShaderCode=False
-   +DirectoriesToNeverCook=(Path="/Game/Audio/SoundControl")
-   ```
-   `SoundControl` нельзя готовить: тогда ссылки в наших ассетах укажут на настоящие звуковые классы игры, а пустышки не попадут в пак.
+---
 
-## 4. Импорт → cook → пак
-
-**Одной командой** (редактор UE закрыт):
-```
-powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project X:\DRGModding\Audio-Modding-Template\FSD.uproject -Repak X:\DRGModding\tools\repak\repak.exe -TrimSilence -Shuffle -Seed 1 -FitSlots
-```
-UE 4.27 скрипт сам находит через манифесты Epic Launcher. Путь к нему можно задать явно через `-UERoot`. `-TargetLufs` по умолчанию −11.
-Скрипт по очереди делает `prepare_tracks` → `ue_import.py` (headless) → `RunUAT BuildCookRun` → `collect_cooked` → `repak pack --version V11` → zip. На выходе `dist\RFB_Jukebox_P.pak` и `dist\RFB_Jukebox.zip`. Флаги `-SkipPrepare`, `-SkipImport`, `-SkipCook` позволяют продолжить с нужного шага.
-
-**Вручную** (если автоматический cook капризничает):
-1. В редакторе: File → Execute Python Script → `tools/ue_import.py`. Прослушай пару ассетов в `Content/Audio/Music/JukeBox`.
-2. File → Package Project → Windows (64-bit) → выбрать папку.
-3. Собрать папку для пака:
-   ```
-   python tools/collect_cooked.py --cooked "<папка>\WindowsNoEditor" --clean
-   repak pack --version V11 pak\RFB_Jukebox_P dist\RFB_Jukebox_P.pak
-   ```
-   С DRGPacker: добавь `--layout drgpacker` и перетащи `pak\RFB_Jukebox_P` на `_Repack.bat`.
-
-`collect_cooked.py` копирует **только** `.uasset/.uexp/.ubulk` слотов из манифеста. Если чего-то не хватает, он падает с ошибкой, а `AssetRegistry.bin`, шейдеры и прочее в пак не попадают. Имя пака обязательно заканчивается на `_P`.
-
-## 5. Тест в игре
-
-- **Через mint** (удобнее): добавить `dist\RFB_Jukebox_P.pak` как локальный мод → Install → запустить DRG. Заодно прогнать линтер mint: предупреждений быть не должно.
-- **Вручную**: положить пак в `...\steamapps\common\Deep Rock Galactic\FSD\Content\Paks`. Мод будет помечен как DEPRECIATED, а игра включит песочный сейв. Это только для теста, **после теста пак удали**.
-
-Чек-лист в баре Space Rig:
-- [ ] джукбокс несколько раз подряд играет только твои треки, без тишины, треска и обрывов;
-- [ ] трек доигрывает до конца, дальше включается следующий;
-- [ ] ползунок громкости музыки влияет на джукбокс, звук затихает при удалении (как у ванили);
-- [ ] со streamer mode в настройках тоже играют твои треки.
-
-Типичные проблемы: тишина — не совпало имя или путь слота (регистр важен). Треск или «перегруз» — снизь `--target-lufs` на 2–3 dB. Громкость не регулируется — в проекте нет нужного SoundClass (смотри предупреждения `ue_import.py`).
-
-## 6. mod.io (скрытый мод)
-
-Пошаговая инструкция: [modio/UPLOAD.md](modio/UPLOAD.md). Кратко:
-
-1. drg.mod.io → «+» → заполнить поля по `modio/description.md`, видимость **Hidden**.
-2. Загрузить `dist\RFB_Jukebox.zip`.
-3. Тег Audio. **Не ставить** `[AimedForVerified/Approved/Sandbox]`: аудио-мод верифицируется автоматически.
-4. Друзей добавить в Team мода, иначе скрытый мод им не виден. Другой вариант — они ставят `.pak` через mint.
-5. В игре: Modding → включить мод → проверить статус **Verified** и основной (не песочный) сейв.
-6. Проверить с другом заход в лобби в обе стороны. Есть сообщения, что скрытые моды мешают входу. Если это подтвердится, раздавай пак через mint. Мод с чужой музыкой публичным не делаем.
-
-## После патчей DRG
-
-Повтори шаг 1 и сравни новый `data/jukebox_slots.csv` с закоммиченным (`git diff`). Если слоты не изменились, пересобирать не нужно. Если изменились — прогони шаги 2–4 и загрузи новый файл в тот же мод на mod.io.
+Вся музыка принадлежит её исполнителям и лейблам. Мод скрытый и предназначен для друзей.

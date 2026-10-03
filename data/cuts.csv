@@ -1,5 +1,5 @@
 track,start,note
-# start = seconds dropped from the beginning so the hook/drop plays early (the in-game jukebox fades songs out after ~30-50 s). Auto-picked from loudness/bass; edit freely.
+# start = second where the hook/drop begins; the slot is played from there (earlier if the slot is long enough). Auto-picked from loudness/bass, edit freely.
 01,39,NPC
 02,0,Кошка
 03,38,Перезавоз

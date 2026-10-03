@@ -1,13 +1,18 @@
-# Тексты для страницы мода на drg.mod.io
+# mod.io page
 
-Каждый блок вставляется в одноимённое поле формы. Как загружать, смотри [UPLOAD.md](UPLOAD.md).
+## Settings
 
-## Name
-```
-RFB Jukebox
-```
+| Field | Value |
+|---|---|
+| Name | `RFB Jukebox` |
+| Visibility | Hidden (friends are added to the mod's Team) |
+| Tags | `Audio` (no `[AimedFor...]`) |
+| Game Version | the one the pak was built and tested on (1.40 for v1.0) |
+| Required | `Optional`: client-side, other players don't need it |
+| Logo | 16:9, at least 512×288 |
+| File | `dist/RFB_Jukebox.zip` |
 
-## Summary (до 250 символов)
+## Summary
 ```
 Replaces every song in the Space Rig jukebox, including the streamer-mode set, with 39 tracks by Lida, CMH and friends. Audio only, client-side.
 ```
@@ -65,17 +70,3 @@ Tracklist:
 
 All music belongs to its respective artists and labels.
 ```
-
-## Tags
-`Audio`. **Не ставить** `[AimedForVerified]`, `[AimedForApproved]`, `[AimedForSandbox]`.
-- **Game Version**: только текущая, на которой мод собран и проверен (на 2026-10-04 это `1.40`).
-- **Required**: `Optional`. Мод клиентский, у других игроков в лобби его быть не должно. `RequiredByAll` закрыл бы вход друзьям без мода.
-
-## Visibility
-**Hidden**. Друзей добавить в Team мода.
-
-## Logo
-PNG или JPG, 16:9, не меньше 512×288 (лучше 1280×720).
-
-## File
-`dist/RFB_Jukebox.zip` (внутри `RFB_Jukebox_P.pak`). Version: `1.0`.

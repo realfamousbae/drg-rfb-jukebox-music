@@ -101,8 +101,8 @@ def cache_key(src, args, start):
 
 def load_cuts(tracks):
     """data/cuts.csv: columns track,start[,note] - track is the NN number prefix or a file name in tracks/;
-    start = seconds to drop from the beginning so the hook/drop comes early (the jukebox fades songs out
-    after roughly 30-50 s)."""
+    start = where the hook/drop begins; with --fit-slots playback starts there (or earlier if the slot is long
+    enough), since the game stops each slot at its vanilla duration."""
     if not CUTS_CSV.exists():
         return {}
     by_key = {t.name: t for t in tracks}
