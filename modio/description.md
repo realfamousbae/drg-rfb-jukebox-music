@@ -1,30 +1,79 @@
-# mod.io page draft
+# Тексты для страницы мода на drg.mod.io
 
-Fill in the placeholders in `< >` and paste each block into the matching field on drg.mod.io.
+Каждый блок вставляется в одноимённое поле формы. Как загружать, смотри [UPLOAD.md](UPLOAD.md).
 
-**Name:** RFB Jukebox
+## Name
+```
+RFB Jukebox
+```
 
-**Summary** (one line, ≤250 chars):
-Replaces every song in the Space Rig jukebox, including the streamer-mode set, with tracks by <artist>. Audio only, client-side.
+## Summary (до 250 символов)
+```
+Replaces every song in the Space Rig jukebox, including the streamer-mode set, with 39 tracks by Lida, CMH and friends. Audio only, client-side.
+```
 
-**Description:**
+## Description
+```
+Swaps all Abyss Bar jukebox songs for 39 tracks by Lida, CMH and friends. The streamer-mode set is replaced too, so the music plays with any setting.
 
-> Swaps all Abyss Bar jukebox songs for music by <artist>. The streamer-mode (no-copyright) set is replaced too, so the tracks play with any setting.
->
-> - Audio-only mod: the game auto-verifies it, so progression and regular lobbies are unaffected.
-> - Client-side: only you hear it; other players don't need it.
-> - Only replaces existing jukebox songs; the jukebox itself is unchanged.
->
-> Tracklist:
-> 1. <track>
-> 2. <track>
->
-> Music © <artist>, used with permission. <links>
+- Audio-only mod: progression and regular lobbies are unaffected.
+- Client-side: only you hear it, other players don't need the mod.
+- Every song starts right at its hook/drop and is fitted to the jukebox's play time, so nothing gets cut off mid-drop.
 
-**Logo:** `modio/logo.png`, 16:9, at least 512×288 (1280×720 recommended).
+Меняет все песни джукбокса в баре Space Rig, включая набор для стримерского режима, на 39 треков Lida, CMH и друзей. Только звук, работает на клиенте: слышишь только ты, остальным мод не нужен. Каждый трек начинается с хука/дропа и подогнан под время проигрывания в джукбоксе.
 
-**Visibility:** Hidden. Add friends under *Team* so they can see and subscribe.
+Tracklist:
+1. Lida, плм, KSB muzic — NPC
+2. Lida — Кошка
+3. Lida — Перезавоз
+4. madk1d, Lida — Always
+5. Lida, Молодой Платон — Не тусоваться
+6. Toxi$, Lida — ТРЯСИ
+7. Lida, СЕРЕГА ПИРАТ — ЧСВ
+8. Lida — Влюблино
+9. Lida — Нихао
+10. Lida, Sqwore — <3
+11. Lida — Район
+12. Lida — Я собираюсь тебя трахнуть
+13. CMH, Lida — СТИКЕР
+14. Lida, CMH, ЮГ 404 — Паркур
+15. Lida, GSPD — Евробит
+16. Lida — Слёзки
+17. Lida — Танцуй, комсомолка
+18. Lida — Лиза
+19. Lida, CMH, GSPD — Сумасшедшая
+20. Lida — Набухаюсь накурюсь
+21. Lida — Лида навсегда
+22. Lida — Танцуй или умри
+23. Lida — Фотки
+24. Lida — Дождь
+25. Lida — Я люблю бухать
+26. CMH — А МОЖЕТ ДА
+27. CMH — RAVE MODE
+28. CMH — РПТ
+29. Lida, СТИНТ, mazzellovvv, ШАПКА, t2x2, Барагозеры — Новогодняя
+30. Мэйби Бэйби, Lida — Не Беспокоюсь
+31. CMH — RAVE MODE (Punk Version)
+32. Lida — Девочка снюс (Alternative Version)
+33. Lida, MORGENSHTERN — Цветы
+34. Lida — Лох
+35. Lida — Любовь 2000
+36. Lida, DK — Анапа
+37. Lida — Одинокий волк
+38. Lida — пупы шмупы
+39. Lida, Tenderlybae — Грустный реп
 
-**Tags:** Audio. Do **not** add `[AimedForVerified]`, `[AimedForApproved]` or `[AimedForSandbox]` — audio-only mods are verified automatically in game.
+All music belongs to its respective artists and labels.
+```
 
-**File:** `dist/RFB_Jukebox.zip` (contains `RFB_Jukebox_P.pak`).
+## Tags
+`Audio`. **Не ставить** `[AimedForVerified]`, `[AimedForApproved]`, `[AimedForSandbox]`.
+
+## Visibility
+**Hidden**. Друзей добавить в Team мода.
+
+## Logo
+PNG или JPG, 16:9, не меньше 512×288 (лучше 1280×720).
+
+## File
+`dist/RFB_Jukebox.zip` (внутри `RFB_Jukebox_P.pak`). Version: `1.0`.
