@@ -1,5 +1,5 @@
 track,start,note
-# start = second where the hook/drop begins; the slot is played from there (earlier if the slot is long enough). Auto-picked from loudness/bass, edit freely.
+# start = second where the hook/drop begins; the slot is played from there (always, so every track opens on its drop). Auto-picked from loudness/bass, edit freely.
 01,39,NPC
 02,0,Кошка
 03,38,Перезавоз

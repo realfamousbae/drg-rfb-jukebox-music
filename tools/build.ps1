@@ -18,6 +18,7 @@ param(
     [switch]$TrimSilence,
     [switch]$Shuffle,
     [switch]$FitSlots,
+    [double]$Volume = 0,
     [int]$Seed = 1,
     [switch]$SkipPrepare,
     [switch]$SkipImport,
@@ -59,6 +60,7 @@ try {
     if (-not $SkipImport) {
         Step "Import into UE"
         $env:RFB_REPO = $Repo
+        $env:RFB_VOLUME = $(if ($Volume -gt 0) { "$Volume" } else { "" })
         & $Editor $Project -run=pythonscript "-script=$Repo\tools\ue_import.py" -unattended -nop4 -nosplash
         Check "ue_import.py"
     }

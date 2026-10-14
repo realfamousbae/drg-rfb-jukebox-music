@@ -19,7 +19,7 @@ Jukebox songs have no Sound Cue: `BP_JukeBox` plays the SoundWaves in `Content/A
 
 Findings along the way:
 
-- **The game plays each slot for exactly its vanilla duration.** It reads that value from its own `AssetRegistry.bin`, which a mod cannot replace, not from the asset. A longer track fades out early, a shorter one leaves silence. So every slot is rendered at exactly its vanilla length (`--fit-slots`): long tracks go to long slots, and playback starts at the point from `data/cuts.csv`. A track more than 10 s shorter than its slot keeps playing by repeating from the drop.
+- **The game plays each slot for exactly its vanilla duration.** It reads that value from its own `AssetRegistry.bin`, which a mod cannot replace, not from the asset. A longer track fades out early, a shorter one leaves silence. So every slot is rendered at exactly its vanilla length (`--fit-slots`): every slot plays from the drop in `data/cuts.csv`, and the tracks with the most music after their drop go to the longest slots. A track more than 10 s shorter than its slot keeps playing by repeating from the drop.
 - **Volume and distance falloff come from `BP_JukeBox`** (SoundClass `Music_JukeBox`, `GenericSoundAttenuation`). The SoundWaves themselves have neither, so the EmptyContentHierarchy dummies aren't needed.
 - **Vanilla songs sit at about −12…−9 LUFS.** Tracks are normalized to −11 LUFS with a −1 dBTP ceiling, using linear gain only, no compression. A track whose peaks don't allow reaching the target stays slightly quieter.
 - The vanilla `Volume` multiplier (1.7 on one slot) is not copied: it only compensated for a quiet vanilla track.
@@ -54,6 +54,8 @@ powershell -ExecutionPolicy Bypass -File tools\build.ps1 -Project <template>\FSD
 ```
 
 Output: `dist\RFB_Jukebox_P.pak` and `dist\RFB_Jukebox.zip` for mod.io. The UE editor must be closed while building. The script finds UE 4.27 through the Epic Games Launcher; set the path manually with `-UERoot`. To resume midway, use `-SkipPrepare`, `-SkipImport` or `-SkipCook`.
+
+`-Volume 2` gives every SoundWave a volume multiplier (2 ≈ +6 dB), so the music carries further from the jukebox. The distance falloff itself comes from `BP_JukeBox`, so past its radius it stays silent whatever the multiplier. The mod stays audio-only and keeps its Verified status.
 
 For local testing, install the `.pak` with [mint](https://github.com/trumank/mint).
 

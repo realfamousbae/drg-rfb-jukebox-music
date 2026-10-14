@@ -8,6 +8,7 @@ Runs inside Unreal Editor 4.27 (embedded Python 3.7) with the "Python Editor Scr
 
 Every WAV is imported under its exact vanilla path and name, then the SoundWave gets the vanilla
 properties recorded by scan_slots.py (SoundClass, attenuation, looping, streaming; not volume).
+RFB_VOLUME (build.ps1 -Volume) sets our own volume multiplier on every wave instead.
 SoundClass/attenuation assets are resolved from the template's dummy Audio/SoundControl folder,
 which must be listed in "Directories to never cook" so the cooked waves point at the game's assets.
 """
@@ -23,6 +24,9 @@ try:
 except NameError:
     REPO = os.environ.get("RFB_REPO", "")
 MANIFEST = os.path.join(REPO, "build", "import", "manifest.csv")
+# Volume multiplier for every wave: >1 makes the jukebox carry further across the Space Rig (the distance
+# falloff itself lives in BP_JukeBox, which an audio-only mod does not touch). Empty = engine default 1.0.
+VOLUME = os.environ.get("RFB_VOLUME", "").strip()
 
 
 def log(msg):
@@ -64,6 +68,8 @@ def apply_vanilla_props(wave, row):
         set_prop(wave, "attenuation_settings", attenuation)
     # Vanilla "volume" is deliberately not copied: it compensated for quiet vanilla tracks (e.g. 1.7 on
     # Jukebox_Greek_*), while ours are already loudness-normalized by prepare_tracks.py.
+    if VOLUME:
+        set_prop(wave, "volume", float(VOLUME))
     set_prop(wave, "compression_quality", int(row.get("compression_quality") or DEFAULT_COMPRESSION_QUALITY))
     set_prop(wave, "looping", as_bool(row.get("looping")))
     if row.get("streaming"):
@@ -76,7 +82,8 @@ def main():
                            "(or set RFB_REPO to the repo path)".format(MANIFEST))
     with open(MANIFEST, newline="", encoding="utf-8") as f:
         rows = list(csv.DictReader(f))
-    log("importing {} jukebox slots from {}".format(len(rows), MANIFEST))
+    log("importing {} jukebox slots from {}".format(len(rows), MANIFEST) +
+        (", volume x{}".format(VOLUME) if VOLUME else ""))
 
     tasks = []
     for row in rows:

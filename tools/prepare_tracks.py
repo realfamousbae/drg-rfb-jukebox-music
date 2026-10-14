@@ -101,8 +101,8 @@ def cache_key(src, args, start):
 
 def load_cuts(tracks):
     """data/cuts.csv: columns track,start[,note] - track is the NN number prefix or a file name in tracks/;
-    start = where the hook/drop begins; with --fit-slots playback starts there (or earlier if the slot is long
-    enough), since the game stops each slot at its vanilla duration."""
+    start = where the hook/drop begins; with --fit-slots every slot is played from there, since the game stops
+    each slot at its vanilla duration."""
     if not CUTS_CSV.exists():
         return {}
     by_key = {t.name: t for t in tracks}
@@ -172,11 +172,10 @@ def fit_to_slot(src, dst, total, cut, slot_dur, sample_rate):
     """Render exactly slot_dur seconds of a normalized track for one slot.
 
     The game ends each jukebox song after its *vanilla* duration (read from the game's AssetRegistry,
-    which a mod pak cannot replace), so every replacement must be exactly that long: start at the
-    hook/drop (cut) - or earlier if the slot is long enough to afford it - and fade out at the end.
-    A track shorter than the slot keeps playing by repeating from the drop (crossfaded) instead of
-    leaving silence. Returns (start, looped)."""
-    start = min(cut, max(0.0, total - slot_dur))
+    which a mod pak cannot replace), so every replacement must be exactly that long: start right at the
+    hook/drop (cut) and fade out at the end. A track shorter than the slot keeps playing by repeating
+    from the drop (crossfaded) instead of leaving silence. Returns (start, looped)."""
+    start = cut
     remaining = total - start
     fade_in = ",afade=t=in:d=0.3" if start > 0 else ""
     if 0 < slot_dur - remaining <= MAX_TAIL_GAP:
@@ -220,6 +219,7 @@ def build(args):
     if args.order == "shuffle":
         random.Random(args.seed).shuffle(tracks)
     mapping = load_mapping(slots, tracks)
+    cuts = load_cuts(tracks)
 
     # Assign a track to every slot: explicit mapping first, otherwise round-robin per set.
     assignment = {}
@@ -230,8 +230,8 @@ def build(args):
             print(f"warning: {len(tracks)} tracks but only {len(set_slots)} {set_name} slots - "
                   f"{len(tracks) - len(set_slots)} tracks will not play in that set")
         if args.fit_slots and set_name == "normal":
-            # longest tracks into the longest slots, so trimming/looping is minimal
-            pool = sorted(tracks[:len(free)], key=lambda t: probe_duration(t), reverse=True)
+            # tracks that run longest from their drop go into the longest slots, so trimming/looping is minimal
+            pool = sorted(tracks[:len(free)], key=lambda t: probe_duration(t) - cuts.get(t, 0.0), reverse=True)
             for s, t in zip(sorted(free, key=lambda s: float(s["duration_sec"]), reverse=True), pool):
                 assignment[s["asset_path"]] = t
             for i, s in enumerate(free[len(pool):]):
@@ -242,7 +242,6 @@ def build(args):
     assignment.update(mapping)
 
     print(f"normalizing to {args.target_lufs} LUFS / {args.true_peak} dBTP, {args.sample_rate} Hz")
-    cuts = load_cuts(tracks)
     # with --fit-slots the cut is applied per slot (fit_to_slot), so normalize whole tracks
     infos = {t: normalized_track(t, args, 0.0 if args.fit_slots else cuts.get(t, 0.0))
              for t in sorted(set(assignment.values()))}
@@ -304,7 +303,7 @@ def main():
     b.add_argument("--seed", type=int, default=1, help="seed for --order shuffle")
     b.add_argument("--fit-slots", action="store_true",
                    help="render every slot at exactly its vanilla duration (the game cuts songs there): "
-                        "long tracks to long slots, start at the cut from data/cuts.csv, fade out at the end")
+                        "tracks that run longest after the drop go to the longest slots, start at the cut from data/cuts.csv, fade out at the end")
     args = ap.parse_args()
     if args.cmd == "measure":
         measure(args.files)
