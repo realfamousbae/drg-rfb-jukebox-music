@@ -2,14 +2,14 @@
 
 Формат: [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версии по [SemVer](https://semver.org/lang/ru/).
 
-## [Unreleased]
+## [1.1.0] — 2026-10-14
 
 ### Изменено
 - Каждый слот снова начинается ровно с дропа из `data/cuts.csv`, как в первой тестовой сборке. В 1.0.0 трек в длинном слоте начинался раньше дропа, иногда с самого начала (так было у 14 треков). В самые длинные слоты теперь ставятся треки, у которых после дропа больше всего музыки.
 - «Набухаюсь накурюсь» (с 0:05) и «Новогодняя» (с 0:22) стартуют там же, где в 1.0.0.
 
 ### Добавлено
-- `build.ps1 -Volume <x>`: множитель громкости для всех SoundWave, чтобы музыку было слышно дальше от джукбокса. Мод остаётся чисто звуковым.
+- `build.ps1 -Volume <x>`: множитель громкости для всех SoundWave, чтобы музыку было слышно дальше от джукбокса. Мод остаётся чисто звуковым. Релиз собран с `-Volume 2` (около +6 дБ).
 
 ## [1.0.0] — 2026-10-04
 
@@ -30,5 +30,5 @@
 - `ue_import.py` и `collect_cooked.py`: headless-импорт в UE 4.27 и сбор только нужных cooked-ассетов.
 - `build.ps1`: вся сборка одной командой. UE 4.27 находится через Epic Launcher, на выходе `.pak` и zip для mod.io.
 
-[Unreleased]: https://github.com/realfamousbae/drg-rfb-jukebox-music/compare/v1.0.0...HEAD
+[1.1.0]: https://github.com/realfamousbae/drg-rfb-jukebox-music/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/realfamousbae/drg-rfb-jukebox-music/releases/tag/v1.0.0
